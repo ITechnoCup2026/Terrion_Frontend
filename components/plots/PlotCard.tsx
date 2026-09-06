@@ -2,7 +2,6 @@ import { User } from 'lucide-react'
 import Link from 'next/link'
 
 import { HarvestWindow } from '@/components/harvest/HarvestWindow'
-import { CROP_CELL, CROP_STAGES } from '@/lib/canvas/crops'
 import { formatNumberId } from '@/lib/format/number'
 import { commodityColour } from '@/lib/plots/colour'
 import type { PlotSummary } from '@/lib/plots/summary'
@@ -11,6 +10,16 @@ export type CommodityRef = { id: string; name: string; spriteRow: number }
 
 /**
  * One plot in the list.
+ *
+ * The card is read top to bottom in the order a kader asks the questions:
+ * which land, whose, growing what, due when, how far along, how much. Every
+ * band is one question, so a grid of these can be scanned a row at a time
+ * rather than re-parsed card by card.
+ *
+ * There is no crop picture. A cell of the canvas sprite sheet used to sit in
+ * the top-right corner in a bordered box -- pixel art at 2x beside line icons,
+ * which read as two products stapled together, and it said nothing the
+ * commodity tag underneath does not say in words.
  */
 export function PlotCard({
   plot, commodities,
@@ -29,82 +38,93 @@ export function PlotCard({
   return (
     <Link
       href={`/plots/${plot.id}`}
-      className="interactive group relative flex flex-col overflow-hidden rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-2xs transition-all duration-200 hover:border-[var(--terrion-green-700)]/50 hover:shadow-md"
+      className="panel panel-hover group relative flex flex-col overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
-      {/* Top Commodity Accent Stripe */}
-      <span aria-hidden className="absolute top-0 inset-x-0 h-1" style={{ background: stripe }} />
+      {/* The lead commodity's colour, so a grid can be scanned by crop before
+          a single name is read. Data, not decoration. */}
+      <span aria-hidden className="h-1 shrink-0" style={{ background: stripe }} />
 
-      <div className="flex flex-1 flex-col gap-3">
-        <div className="flex items-start justify-between gap-3 pt-1">
+      <div className="flex flex-1 flex-col gap-3.5 p-5">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-bold text-foreground transition-colors group-hover:text-[var(--terrion-green-900)]">
+            <h3 className="truncate text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-[var(--terrion-green-700)]">
               {plot.name}
             </h3>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <User className="size-3.5 text-muted-foreground/70 shrink-0" />
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <User aria-hidden className="size-3.5 shrink-0" />
               <span className="truncate">{plot.memberName ?? 'Petani tidak tercatat'}</span>
-              <span>·</span>
-              <span className="font-semibold tabular-nums text-foreground">{formatNumberId(plot.areaHa)} ha</span>
-            </div>
+            </p>
           </div>
-          {lead && <CropGlyph spriteRow={lead.spriteRow} stage={CROP_STAGES - 2} />}
+          <span className="badge-tag shrink-0 tabular-nums">
+            {formatNumberId(plot.areaHa)} ha
+          </span>
         </div>
 
-        <div className="my-1">
-          {plot.nextWindow ? (
-            <HarvestWindow size="sm" window={plot.nextWindow} />
-          ) : (
-            <span className="inline-flex items-center rounded-md bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground">
-              Belum ada tanaman aktif
-            </span>
-          )}
+        {grown.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {grown.map(c => (
+              <CommodityTag key={c.id} name={c.name} colour={commodityColour(c.spriteRow)} />
+            ))}
+          </div>
+        )}
+
+        <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5">
+          <p className="text-[0.625rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            Panen terdekat
+          </p>
+          <div className="mt-1">
+            {plot.nextWindow ? (
+              <HarvestWindow size="sm" window={plot.nextWindow} />
+            ) : (
+              <span className="text-[0.8rem] text-muted-foreground">
+                Belum ada tanaman aktif
+              </span>
+            )}
+          </div>
         </div>
 
         {plot.progress != null && plot.progress < 1 && (
           <SeasonMeter progress={plot.progress} colour={stripe} />
         )}
 
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border/60 pt-3 text-xs">
-          {grown.length > 0 && (
-            <div className="flex items-center gap-1.5 font-semibold text-foreground">
-              <span className="size-2 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: stripe }} />
-              <span className="truncate">{grown.map(c => c.name).join(' · ')}</span>
-            </div>
-          )}
-          {plot.expectedTonnes != null && (
-            <span className="ml-auto shrink-0 font-semibold tabular-nums text-foreground">
-              {plot.blockCount} blok · ± {formatNumberId(plot.expectedTonnes)} t
-            </span>
-          )}
-        </div>
+        <dl className="mt-auto grid grid-cols-2 gap-3 border-t border-border/70 pt-3">
+          <Fact label="Blok" value={`${formatNumberId(plot.blockCount)} blok`} />
+          <Fact
+            label="Perkiraan hasil"
+            value={plot.expectedTonnes != null ? `± ${formatNumberId(plot.expectedTonnes)} t` : '—'}
+            align="right"
+          />
+        </dl>
       </div>
     </Link>
   )
 }
 
-/**
- * One cell of the crop sprite sheet, as a background position.
- */
-function CropGlyph({ spriteRow, stage }: { spriteRow: number; stage: number }) {
-  const size = CROP_CELL * 2
+/** A commodity's name, dotted in its own colour -- the same shape the browser's filter chips use. */
+function CommodityTag({ name, colour }: { name: string; colour: string }) {
   return (
-    <span
-      aria-hidden
-      className="shrink-0 rounded-lg border border-border/50 bg-muted/40 p-1 flex items-center justify-center shadow-2xs"
-      style={{
-        width: size + 8, height: size + 8,
-      }}
-    >
-      <span
-        style={{
-          width: size, height: size,
-          imageRendering: 'pixelated',
-          backgroundImage: 'url(/sprites/crops.png)',
-          backgroundSize: `${CROP_STAGES * size}px auto`,
-          backgroundPosition: `-${stage * size}px -${spriteRow * size}px`,
-        }}
-      />
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[0.6875rem] font-medium text-foreground">
+      <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: colour }} />
+      {name}
     </span>
+  )
+}
+
+/** One figure in the card's foot: what it counts, then the number. */
+function Fact({
+  label, value, align = 'left',
+}: {
+  label: string
+  value: string
+  align?: 'left' | 'right'
+}) {
+  return (
+    <div className={align === 'right' ? 'text-right' : undefined}>
+      <dt className="text-[0.625rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">{value}</dd>
+    </div>
   )
 }
 
@@ -114,12 +134,12 @@ function CropGlyph({ spriteRow, stage }: { spriteRow: number; stage: number }) {
 function SeasonMeter({ progress, colour }: { progress: number; colour: string }) {
   const percent = Math.round(progress * 100)
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="flex items-baseline justify-between text-[0.6875rem] font-medium text-muted-foreground">
         <span>Perkembangan musim</span>
         <span className="tabular-nums font-semibold text-foreground">{percent}%</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted/80">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full transition-[width] duration-300"
           style={{ width: `${percent}%`, background: colour }}
