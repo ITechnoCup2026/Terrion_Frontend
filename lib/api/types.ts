@@ -451,6 +451,9 @@ export type SupplyRequestRaw = {
   buyer_id: string
   buyer_name: string
   buyer_organisation: string
+  buyer_phone: string | null
+  cooperative_name: string
+  cooperative_phone: string | null
   commodity_id: string
   volume_kg: number
   window_start: string

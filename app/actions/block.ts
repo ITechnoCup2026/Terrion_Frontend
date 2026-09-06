@@ -1,5 +1,7 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
+
 import { toISODate } from '@/lib/agronomy/dates'
 import { attempt, ExpectedFailure, type ActionResult } from '@/lib/actions/result'
 import { apiFetch, ApiError } from '@/lib/api/client'
@@ -36,6 +38,17 @@ export async function splitBlock(
           planting_date: toISODate(plantingDate),
         },
       })
+      // The caller's router.refresh() only clears the client's own Router
+      // Cache. The server's rendered output for this route is cached too, so
+      // without this the refresh can be answered from a copy drawn before the
+      // split and the reader has to reload by hand.
+      //
+      // Both paths are named: the farm canvas is drawn from the detail route,
+      // and the list's cards carry each plot's next harvest window, which a
+      // new block can change.
+      revalidatePath(`/plots/${result.plot_id}`)
+      revalidatePath('/plots')
+
       return { plotId: result.plot_id, blockId: result.block_id }
     } catch (error) {
       if (error instanceof ApiError) {

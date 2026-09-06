@@ -8,6 +8,10 @@ export type SupplyRequest = {
   buyerId: string
   buyerName: string
   buyerOrganisation: string
+  /** WhatsApp number, null when the account predates the field or is a demo row. */
+  buyerPhone: string | null
+  cooperativeName: string
+  cooperativePhone: string | null
   commodityId: string
   volumeKg: number
   windowStart: string
@@ -25,6 +29,9 @@ function toSupplyRequest(raw: SupplyRequestRaw): SupplyRequest {
     buyerId: raw.buyer_id,
     buyerName: raw.buyer_name,
     buyerOrganisation: raw.buyer_organisation,
+    buyerPhone: raw.buyer_phone ?? null,
+    cooperativeName: raw.cooperative_name ?? '',
+    cooperativePhone: raw.cooperative_phone ?? null,
     commodityId: raw.commodity_id,
     volumeKg: raw.volume_kg,
     windowStart: raw.window_start,

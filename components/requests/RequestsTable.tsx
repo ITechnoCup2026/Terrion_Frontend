@@ -20,6 +20,8 @@ import { respondToRequest } from '@/app/actions/supply-request'
 import { HarvestWindow } from '@/components/harvest/HarvestWindow'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/button'
+import { WhatsAppButton } from '@/components/commerce/WhatsAppButton'
+import { requestMessageToBuyer } from '@/lib/supply-requests/message'
 import {
   SegmentedControl,
   SortableTh,
@@ -381,7 +383,7 @@ export function RequestsTable({
           <Dialog.Popup
             className={cn(
               'fixed top-1/2 left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2',
-              'overflow-hidden rounded-xl border border-border bg-card p-6 shadow-[var(--shadow-xl)]',
+              'max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-[var(--shadow-xl)] sm:p-6',
               'transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
               'data-[starting-style]:opacity-0 data-[starting-style]:scale-95',
               'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',
@@ -507,6 +509,16 @@ export function RequestsTable({
                       Permintaan berstatus {REQUEST_STATUS_LABEL[detailRequest.status].toLowerCase()}.
                     </span>
                   )}
+
+                  {/* Reaching the buyer is useful at every status, not only
+                      while a decision is pending: an accepted contract needs a
+                      delivery conversation, and a declined one often needs an
+                      explanation. */}
+                  <WhatsAppButton
+                    phone={detailRequest.buyerPhone}
+                    message={requestMessageToBuyer(
+                      detailRequest, commodityName.get(detailRequest.commodityId) ?? 'komoditas')}
+                  />
 
                   <Button
                     size="sm"

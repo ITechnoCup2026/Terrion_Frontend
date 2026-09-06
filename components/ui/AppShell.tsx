@@ -12,6 +12,7 @@ import { Logo } from '@/components/ui/Logo'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Topbar } from '@/components/ui/Topbar'
+import { homeFor } from '@/lib/auth/display'
 import type { UserRole } from '@/lib/auth/roles'
 import { isActivePath } from '@/lib/nav/active'
 import { isImmersiveRoute } from '@/lib/nav/immersive'
@@ -109,16 +110,26 @@ export function AppShell({
   // be collapsed while the immersive panel still wants the full card: that
   // panel is a column of its own and has the room, and a lone glyph at the top
   // of it would say nothing about whose farm is on screen.
+  // Where the logo goes: whichever screen this role lands on after signing in.
+  const home = homeFor(role)
+
   const collapsedWorkspace = (
     <div className="flex justify-center" title={workspace?.name ?? 'Terrion'}>
-      <Logo size={24} withWordmark={false} />
+      <Link href={home} aria-label="Kembali ke halaman utama" className="interactive">
+        <Logo size={24} withWordmark={false} />
+      </Link>
     </div>
   )
 
   const expandedWorkspace = (
     <div className="flex flex-col gap-3">
       <div className="flex items-center px-1 py-0.5">
-        <Logo size={26} withWordmark={true} />
+        {/* The mark is the way back. Somebody three levels into a plot has no
+            other single-click route to where they started, and reaching for a
+            logo is the habit every other product has already taught them. */}
+        <Link href={home} aria-label="Kembali ke halaman utama" className="interactive">
+          <Logo size={26} withWordmark={true} />
+        </Link>
       </div>
       {workspace && (
         <div className="min-w-0 rounded-lg border border-border/70 bg-muted/40 px-3 py-2.5 leading-tight">

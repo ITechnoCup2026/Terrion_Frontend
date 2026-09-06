@@ -28,7 +28,7 @@ export async function signUpBuyer(raw: unknown): Promise<SignupResult> {
   if (!parsed.success) {
     return { outcome: 'error', message: parsed.error.issues[0]?.message ?? 'Isian tidak valid.' }
   }
-  const { fullName, organisation, email, password, confirmPassword } = parsed.data
+  const { fullName, organisation, email, phone, password, confirmPassword } = parsed.data
 
   try {
     const result = await apiFetch<SignupResponseRaw>('/api/auth/signup', {
@@ -37,6 +37,7 @@ export async function signUpBuyer(raw: unknown): Promise<SignupResult> {
         full_name: fullName,
         organisation,
         email,
+        phone,
         password,
         confirm_password: confirmPassword,
       },

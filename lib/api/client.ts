@@ -60,7 +60,7 @@ export class ApiError extends Error {
 }
 
 type ApiRequestInit = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   query?: Record<string, string | number | boolean | undefined>
   /** Session id to forward as the `terrion_session` cookie. Omit for public endpoints. */

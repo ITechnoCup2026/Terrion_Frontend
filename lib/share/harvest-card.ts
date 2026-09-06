@@ -130,7 +130,10 @@ export function drawHarvestCard(
 
   ctx.fillStyle = INK
   ctx.font = `700 76px ${stack}`
-  y = drawWrapped(ctx, content.heading, margin, y, CARD_WIDTH - margin * 2, 88)
+  // Two lines at most. A plot name long enough to take three would push every
+  // row below it through the footer, and the name is the one thing on the card
+  // the reader can already identify from a fragment.
+  y = drawWrapped(ctx, content.heading, margin, y, CARD_WIDTH - margin * 2, 88, 2)
 
   ctx.fillStyle = INK_SOFT
   ctx.font = `400 40px ${stack}`
@@ -146,8 +149,26 @@ export function drawHarvestCard(
   ctx.lineWidth = 2
   line(ctx, margin, y, CARD_WIDTH - margin)
 
+  // The footnote and the URL sit on the floor of the card rather than after the
+  // last row, so a plot with one crop and a plot with four both carry the hedge
+  // in the same place. Rows therefore have a hard ceiling, not a soft one.
+  const floor = CARD_HEIGHT - 96
+  const rowsCeiling = floor - 132 - 28
+
   y += 76
-  for (const row of content.rows) {
+  const textWidth = CARD_WIDTH - margin * 2
+
+  // Measure every row before drawing any, because how many fit depends on how
+  // many lines each value wraps to -- which is only knowable from the context.
+  ctx.font = `400 36px ${stack}`
+  const heights = content.rows.map(row => {
+    const lines = wrapLines(text => ctx.measureText(text).width, row.value, textWidth, 2)
+    return 48 + (lines.length - 1) * 46 + 46
+  })
+
+  const fitted = rowsThatFit(y, rowsCeiling, heights)
+
+  for (const row of content.rows.slice(0, fitted)) {
     ctx.fillStyle = INK
     ctx.font = `600 44px ${stack}`
     ctx.fillText(row.label, margin, y)
@@ -155,22 +176,26 @@ export function drawHarvestCard(
     ctx.fillStyle = INK_SOFT
     ctx.font = `400 36px ${stack}`
     y += 48
-    y = drawWrapped(ctx, row.value, margin, y, CARD_WIDTH - margin * 2, 46)
+    y = drawWrapped(ctx, row.value, margin, y, textWidth, 46, 2)
 
     y += 46
   }
 
-  // The footnote and the URL sit on the floor of the card rather than after the
-  // last row, so a plot with one crop and a plot with four both carry the hedge
-  // in the same place.
-  const floor = CARD_HEIGHT - 96
+  // Dropped rows are named, not silently lost: a card listing two of five crops
+  // with no sign of the other three misrepresents the plot.
+  const dropped = content.rows.length - fitted
+  if (dropped > 0) {
+    ctx.fillStyle = INK_SOFT
+    ctx.font = `400 36px ${stack}`
+    ctx.fillText(`+${dropped} komoditas lain — lihat halaman kebun`, margin, y)
+  }
 
   ctx.strokeStyle = RULE
   line(ctx, margin, floor - 132, CARD_WIDTH - margin)
 
   ctx.fillStyle = INK_SOFT
   ctx.font = `400 30px ${stack}`
-  drawWrapped(ctx, content.footnote, margin, floor - 78, CARD_WIDTH - margin * 2, 38)
+  drawWrapped(ctx, content.footnote, margin, floor - 78, textWidth, 38, 2)
 
   ctx.fillStyle = GREEN
   ctx.font = `600 32px ${stack}`
@@ -184,25 +209,88 @@ function line(ctx: CanvasRenderingContext2D, from: number, y: number, to: number
   ctx.stroke()
 }
 
-/** Draws text broken onto as many lines as it needs; returns the last baseline. */
+/**
+ * How many of `rowHeights` can be drawn from `from` without crossing `ceiling`.
+ *
+ * The footnote and the URL are pinned to the floor of the card so that a plot
+ * with one crop and a plot with four both carry the hedge in the same place.
+ * The consequence is that rows running long do not push the footer down — they
+ * draw straight through it. A long plot name wrapping to a second line was
+ * enough: five rows then ended at 1188 against a footer rule at 1122.
+ *
+ * So the rows yield, never the hedge. What does not fit is summarised instead.
+ */
+export function rowsThatFit(from: number, ceiling: number, rowHeights: number[]): number {
+  let y = from
+  let fitted = 0
+
+  for (const height of rowHeights) {
+    if (y + height > ceiling) break
+    y += height
+    fitted++
+  }
+
+  return fitted
+}
+
+/**
+ * Draws text broken onto as many lines as it needs; returns the last baseline.
+ *
+ * `maxLines` caps the growth, with the last line ellipsised. Without a cap the
+ * heading alone can take three lines and shove every row below it through the
+ * footer.
+ */
 function drawWrapped(
   ctx: CanvasRenderingContext2D,
   text: string, x: number, y: number, maxWidth: number, lineHeight: number,
+  maxLines = Number.POSITIVE_INFINITY,
 ): number {
-  const words = text.split(' ')
-  let current = ''
+  const lines = wrapLines(content => ctx.measureText(content).width, text, maxWidth, maxLines)
+
   let baseline = y
+  for (const [index, content] of lines.entries()) {
+    ctx.fillText(content, x, baseline)
+    if (index < lines.length - 1) baseline += lineHeight
+  }
+  return baseline
+}
+
+/**
+ * Breaks `text` into at most `maxLines` lines that each measure under
+ * `maxWidth`. The final line is ellipsised when text had to be dropped.
+ */
+export function wrapLines(
+  measure: (text: string) => number,
+  text: string, maxWidth: number, maxLines = Number.POSITIVE_INFINITY,
+): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let current = ''
 
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word
-    if (ctx.measureText(candidate).width > maxWidth && current) {
-      ctx.fillText(current, x, baseline)
-      baseline += lineHeight
+    if (measure(candidate) > maxWidth && current) {
+      lines.push(current)
+      if (lines.length === maxLines) return ellipsise(lines, maxWidth, measure)
       current = word
     } else {
       current = candidate
     }
   }
-  if (current) ctx.fillText(current, x, baseline)
-  return baseline
+  if (current) lines.push(current)
+
+  return lines
+}
+
+/** Marks the last kept line so a truncated card does not read as a complete one. */
+function ellipsise(
+  lines: string[], maxWidth: number, measure: (text: string) => number,
+): string[] {
+  const last = lines.length - 1
+  let content = `${lines[last]}…`
+  while (content.length > 1 && measure(content) > maxWidth) {
+    content = `${content.slice(0, -2)}…`
+  }
+  lines[last] = content
+  return lines
 }

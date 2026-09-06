@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { HarvestWindow } from '@/components/harvest/HarvestWindow'
 import type { FarmSummary } from '@/components/plots/FarmSummaryPanel'
+import { DeletePlotButton } from '@/components/plots/DeletePlotButton'
 import { FarmWorkspace } from '@/components/plots/FarmWorkspace'
 import type { StageBlock } from '@/components/plots/PlotStage'
 import type { ReferenceCommodity, ReferenceVariety } from '@/components/plots/SplitBlockForm'
@@ -41,6 +42,8 @@ export default async function PlotPage({ params }: { params: Promise<{ id: strin
     window: b.window,
     plantingDate: b.plantingDate.toISOString().slice(0, 10),
     gddRequired: b.window?.gddRequired ?? 0,
+    varietyId: b.varietyId,
+    commodityId: b.commodityId,
     // Signed-in only. The public garden gets the same blocks without this: a
     // price on a page anyone can open reads as an asking price, and the
     // cooperative has not offered one.
@@ -98,7 +101,7 @@ export default async function PlotPage({ params }: { params: Promise<{ id: strin
           summary={summary}
           degraded={plot.degraded}
           editing={canEdit
-            ? { commodities: editingCommodities, varieties: editingVarieties }
+            ? { plotId: plot.id, commodities: editingCommodities, varieties: editingVarieties }
             : undefined}
           panelLabel={`Rincian ${plot.name}`}
           header={
@@ -132,6 +135,24 @@ export default async function PlotPage({ params }: { params: Promise<{ id: strin
                 </div>
               ))}
             </dl>
+
+            {/* Only a pengurus, and only at the foot of the facts about this
+                plot -- deleting a registration is the one thing on this screen
+                that cannot be undone, so it does not sit near the canvas
+                controls somebody is clicking through. */}
+            {user.role === 'pengurus' && (
+              <div className="mt-4 border-t border-border pt-3">
+                <DeletePlotButton
+                  plotId={plot.id}
+                  plotName={plot.name}
+                  blocks={stageBlocks.length}
+                />
+                <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-muted-foreground">
+                  Untuk lahan yang salah didaftarkan. Lahan yang sudah punya panen tercatat
+                  tidak bisa dihapus.
+                </p>
+              </div>
+            )}
           </section>
 
           {/* One row per field. The canvas colours each block and this is the

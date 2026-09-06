@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { harvestCardContent, type HarvestCardFacts } from './harvest-card'
+import { harvestCardContent, rowsThatFit, type HarvestCardFacts } from './harvest-card'
 
 function facts(over: Partial<HarvestCardFacts> = {}): HarvestCardFacts {
   return {
@@ -67,5 +67,28 @@ describe('harvestCardContent', () => {
   it('says when the projection ran without current weather', () => {
     expect(harvestCardContent(facts({ degraded: true })).footnote)
       .toMatch(/tanpa data cuaca terbaru/)
+  })
+})
+
+describe("rowsThatFit", () => {
+  // The footnote and URL are pinned to the floor of the card, so rows that run
+  // long do not push them down -- they draw straight through them. This is the
+  // guard that keeps the two apart.
+  it('drops the row that would cross the footer rule', () => {
+    // Five rows of 140 from y=400 ends at 1100, past a ceiling of 1094.
+    expect(rowsThatFit(400, 1094, [140, 140, 140, 140, 140])).toBe(4)
+  })
+
+  it('keeps every row when they all fit', () => {
+    expect(rowsThatFit(400, 1094, [140, 140])).toBe(2)
+  })
+
+  it('drops more rows when a two-line heading pushed the start down', () => {
+    // A two-line heading starts the rows 88px lower.
+    expect(rowsThatFit(488, 1094, [140, 140, 140, 140, 140])).toBe(4)
+  })
+
+  it('returns zero rather than a negative count when nothing fits', () => {
+    expect(rowsThatFit(1090, 1094, [140])).toBe(0)
   })
 })

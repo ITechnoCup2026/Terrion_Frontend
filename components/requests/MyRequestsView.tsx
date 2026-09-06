@@ -23,6 +23,8 @@ import { CropMark } from '@/components/commerce/CropMark'
 import { HarvestWindow } from '@/components/harvest/HarvestWindow'
 import { Badge } from '@/components/ui/Badge'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { WhatsAppButton } from '@/components/commerce/WhatsAppButton'
+import { requestMessageToCooperative } from '@/lib/supply-requests/message'
 import { MetricRow, type Metric } from '@/components/ui/Card'
 import {
   SegmentedControl,
@@ -402,7 +404,7 @@ export function MyRequestsView({
           <Dialog.Popup
             className={cn(
               'fixed top-1/2 left-1/2 z-50 w-[min(38rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2',
-              'overflow-hidden rounded-lg border border-border bg-card p-6 shadow-[var(--shadow-xl)]',
+              'max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-lg border border-border bg-card p-4 shadow-[var(--shadow-xl)] sm:p-6',
               'transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
               'data-[starting-style]:opacity-0 data-[starting-style]:scale-95',
               'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',
@@ -560,13 +562,25 @@ export function MyRequestsView({
                     </span>
                   )}
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setDetailRequest(null)}
-                  >
-                    Tutup
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* The other half of the introduction. A buyer whose
+                        contract was accepted still has to arrange a lorry, and
+                        Terrion carries no messaging to arrange it in. */}
+                    <WhatsAppButton
+                      phone={detailRequest.cooperativePhone}
+                      message={requestMessageToCooperative(
+                        detailRequest, commodityMap.get(detailRequest.commodityId) ?? 'komoditas')}
+                      label="Hubungi koperasi"
+                    />
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setDetailRequest(null)}
+                    >
+                      Tutup
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
