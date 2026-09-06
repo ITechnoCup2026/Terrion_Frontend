@@ -1,11 +1,9 @@
-import { CalendarClock, Layers, MapPin, Maximize2 } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
 import type { CommodityRef } from '@/components/plots/PlotCard'
-import { PlotsView } from '@/components/plots/PlotsView'
-import { MetricRow, type Metric } from '@/components/ui/Card'
-import { Page, PageHeader } from '@/components/ui/Page'
+import { PlotsView, type PlotMetric } from '@/components/plots/PlotsView'
+import { Page } from '@/components/ui/Page'
 import { addDays, toISODate } from '@/lib/agronomy/dates'
 import { loadAtlasCooperatives } from '@/lib/atlas/load'
 import { currentAppUser } from '@/lib/auth/session'
@@ -61,47 +59,48 @@ export default async function PlotsPage() {
   // are the fixed thing a narrowed list is measured against.
   const soon = addDays(now, 30)
   const dueSoon = summaries.filter(s => s.nextWindow && s.nextWindow.start <= soon).length
-  const kpis: Metric[] = [
+
+  // Data only, no component references: the view turns each `key` into its
+  // glyph, because a server component cannot hand one across the boundary.
+  const metrics: PlotMetric[] = [
     {
+      key: 'plots',
       label: 'Lahan',
       value: formatNumberId(summaries.length),
-      icon: MapPin,
       tone: 'default',
     },
     {
+      key: 'area',
       label: 'Luas total',
       value: `${formatNumberId(summaries.reduce((s, p) => s + p.areaHa, 0))} ha`,
-      icon: Maximize2,
       tone: 'positive',
     },
     {
+      key: 'blocks',
       label: 'Blok aktif',
       value: formatNumberId(summaries.reduce((s, p) => s + p.blockCount, 0)),
-      icon: Layers,
       tone: 'info',
     },
     {
+      key: 'due',
       label: 'Panen 30 hari',
       value: formatNumberId(dueSoon),
       hint: 'Lahan yang jatuh tempo',
-      icon: CalendarClock,
       tone: dueSoon > 0 ? 'positive' : 'default',
     },
   ]
 
   return (
-    <Page width="wide" className="flex flex-col gap-6">
-      <PageHeader
-        title="Lahan"
-        description="Setiap lahan koperasi ini, dengan perkiraan panen terdekatnya."
-      />
-
-      {summaries.length > 0 && <MetricRow items={kpis} />}
-
+    <Page width="wide">
       {/* useSearchParams needs a boundary; without one the whole route opts out
           of static rendering with a build-time error. */}
       <Suspense fallback={null}>
-        <PlotsView plots={summaries} commodities={commodities} formData={formData} />
+        <PlotsView
+          plots={summaries}
+          commodities={commodities}
+          metrics={metrics}
+          formData={formData}
+        />
       </Suspense>
     </Page>
   )
