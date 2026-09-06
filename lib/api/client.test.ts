@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { ApiError, isBackendDown, isNotFound, NETWORK_ERROR, sessionIdFromResponse } from './client'
 
@@ -71,5 +71,96 @@ describe('classifying a failure', () => {
     expect(isBackendDown(err(404, 'plot not found'))).toBe(false)
     expect(isBackendDown(err(422, 'stagger_nothing_to_shift'))).toBe(false)
     expect(isBackendDown(new Error('something else'))).toBe(false)
+  })
+})
+
+/**
+ * The transport's job when the network misbehaves. A blip on the way to the
+ * backend used to cost a whole server render -- ten seconds to a connect
+ * timeout, or minutes to a stalled read that nothing bounded -- and the page
+ * still ended up telling the visitor nothing could be asked. One repeat of a
+ * safe request covers the blip; a bound on each attempt covers the stall.
+ *
+ * BASE_URL is read once when the module loads, so these re-import it with the
+ * env var in place rather than sharing the instance the rest of the file uses.
+ */
+describe('apiExchange transport', () => {
+  let client: typeof import('./client')
+  const ok = () =>
+    new Response(JSON.stringify({ data: { ok: true } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  beforeAll(async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.test')
+    vi.resetModules()
+    client = await import('./client')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  afterAll(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it('repeats a GET that never reached the backend', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(ok())
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(client.apiFetch('/api/me')).resolves.toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  // A write that timed out may have been applied already -- the answer was
+  // lost, not the write. Repeating it would record a second harvest.
+  it('never repeats a write', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(client.apiFetch('/api/harvests', { method: 'POST', body: {} }))
+      .rejects.toMatchObject({ status: NETWORK_ERROR, code: 'network_unreachable' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('gives up as unreachable once the repeat fails too', async () => {
+    const cause = new TypeError('fetch failed')
+    const fetchMock = vi.fn().mockRejectedValue(cause)
+    vi.stubGlobal('fetch', fetchMock)
+
+    // The last failure is kept as the cause, so a log still names the syscall.
+    await expect(client.apiFetch('/api/me')).rejects.toMatchObject({
+      status: NETWORK_ERROR,
+      code: 'network_unreachable',
+      cause,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  // Without this a connection that opens and then stalls has nothing to stop
+  // it; the render waits on the OS.
+  it('bounds every attempt with an abort signal', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok())
+    vi.stubGlobal('fetch', fetchMock)
+
+    await client.apiFetch('/api/me')
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+  })
+
+  // A 500 is the backend answering, not the network failing, so repeating it
+  // would just ask a struggling server the same question twice.
+  it('does not repeat a request the backend answered', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ errors: 'internal' }), { status: 500 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(client.apiFetch('/api/me')).rejects.toBeInstanceOf(client.ApiError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

@@ -2,6 +2,7 @@ import { utcDate } from '@/lib/agronomy/dates'
 import { apiFetch } from '@/lib/api/client'
 import type { InputOrderRaw, InputOrderStatusRaw, RdkkResponseRaw } from '@/lib/api/types'
 import { currentSessionId } from '@/lib/auth/session'
+import { fallbackNextStatuses } from '@/lib/rdkk/status'
 
 export type Season = { label: string; start: Date; end: Date }
 
@@ -87,17 +88,32 @@ export async function loadSeasonInputs(season: Season): Promise<RdkkSeason> {
   }
 }
 
+export type InputOrderLine = {
+  item: string
+  quantity: number
+  unit: string
+  /** The RDKK's own figure, present only where this line was adjusted. */
+  quantityRdkk: number | null
+}
+
 export type InputOrder = {
   id: string
   seasonLabel: string
   status: InputOrderStatusRaw
   createdAt: Date
-  lines: { item: string; quantity: number; unit: string }[]
+  createdByName: string | null
+  statusChangedAt: Date | null
+  statusChangedByName: string | null
+  /** Where this order may go next, as the server ruled. Empty on a finished
+   *  one. The screen renders a button per entry rather than keeping a second
+   *  copy of the transition rules that could drift from the server's. */
+  nextStatuses: InputOrderStatusRaw[]
+  lines: InputOrderLine[]
 }
 
-/** GET /api/input-orders, newest first: every group order this cooperative
- *  has created, with its status -- the record "Buat pesanan kelompok" leaves
- *  behind once clicked, which the page had nowhere to show before this. */
+
+/** GET /api/input-orders, newest first: every group order this cooperative has
+ *  created, with its status, who made it, and who last moved it. */
 export async function loadInputOrders(): Promise<InputOrder[]> {
   const sessionId = await currentSessionId()
   const raw = await apiFetch<InputOrderRaw[]>('/api/input-orders', { sessionId })
@@ -107,7 +123,21 @@ export async function loadInputOrders(): Promise<InputOrder[]> {
     status: order.status,
     // A full RFC3339 timestamp, not the plain 'YYYY-MM-DD' utcDate() parses.
     createdAt: new Date(order.created_at),
-    lines: order.lines,
+    createdByName: order.created_by_name,
+    // Null until somebody moves it, and null is not a date: an order nobody
+    // has touched has no change to show, not a change at the epoch.
+    statusChangedAt: order.status_changed_at ? new Date(order.status_changed_at) : null,
+    statusChangedByName: order.status_changed_by_name,
+    // Absent and empty mean different things. A backend that predates this
+    // field says nothing, and the screen still has to offer the steps; a
+    // backend that sends [] is saying the order is finished.
+    nextStatuses: order.next_statuses ?? fallbackNextStatuses(order.status),
+    lines: order.lines.map(line => ({
+      item: line.item,
+      quantity: line.quantity,
+      unit: line.unit,
+      quantityRdkk: line.quantity_rdkk,
+    })),
   }))
 }
 

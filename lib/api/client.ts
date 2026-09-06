@@ -29,6 +29,22 @@ export const SESSION_COOKIE = 'terrion_session'
  */
 export const NETWORK_ERROR = 0
 
+/**
+ * How long one attempt may take before it is abandoned.
+ *
+ * `fetch` bounds how long it will wait to *connect* -- undici gives up after
+ * 10s -- but puts no bound at all on a connection that opens and then stalls
+ * mid-read. A dropped Wi-Fi link leaves the socket waiting on the OS, which on
+ * macOS surfaces as `read ETIMEDOUT` minutes later, and a server render sits on
+ * it for the whole time: a page one blip away from fine takes three minutes to
+ * admit it could not ask. This caps an attempt just under undici's connect
+ * timeout so both failures land here instead.
+ */
+const ATTEMPT_TIMEOUT_MS = 8_000
+
+/** Breather between the two attempts a GET gets, so a blip has a moment to pass. */
+const RETRY_BACKOFF_MS = 250
+
 export class ApiError extends Error {
   status: number
   code: string
@@ -73,22 +89,43 @@ export async function apiExchange<T>(
     }
   }
 
-  let res: Response
-  try {
-    res = await fetch(url, {
-      method: init.method ?? 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init.sessionId ? { Cookie: `${SESSION_COOKIE}=${init.sessionId}` } : {}),
-      },
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-      cache: init.cache ?? 'no-store',
-    })
-  } catch (cause) {
+  const method = init.method ?? 'GET'
+
+  // Only a GET is retried. A POST or PATCH that timed out may already have been
+  // applied by the backend -- the answer was lost, not the write -- so sending
+  // it again would record a second harvest or a second supply request. Those
+  // get one attempt and report the failure honestly.
+  const attempts = method === 'GET' ? 2 : 1
+
+  let res: Response | undefined
+  let lastCause: unknown
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(init.sessionId ? { Cookie: `${SESSION_COOKIE}=${init.sessionId}` } : {}),
+        },
+        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+        cache: init.cache ?? 'no-store',
+        signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+      })
+      break
+    } catch (cause) {
+      lastCause = cause
+      if (attempt < attempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_BACKOFF_MS))
+      }
+    }
+  }
+
+  if (!res) {
     // The backend was never reached, so there is no status and no error code to
     // read. A caller that cannot tell this apart from a 404 will tell a visitor
     // their plot does not exist when the truth is that nothing could be asked.
-    throw new ApiError(NETWORK_ERROR, 'network_unreachable', undefined, { cause })
+    throw new ApiError(NETWORK_ERROR, 'network_unreachable', undefined, { cause: lastCause })
   }
 
   // 204 No Content (auth/refresh, auth/logout, PATCH /api/supply-requests/:id)

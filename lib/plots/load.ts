@@ -59,6 +59,15 @@ export type PlotDetailBlock = {
   varietyId: string
   varietyName: string
   plantingDate: Date
+  /**
+   * Written by a season plan rather than recorded by a kader.
+   *
+   * Decision K3 of `docs/RENCANA_KERJA_FITUR_RENCANA_TANAM.md`: a plan writes
+   * blocks and a kader records what is actually in the field, and the two must
+   * never look alike. A pengurus who cannot tell them apart cannot tell an
+   * intention from an observation.
+   */
+  fromPlan: boolean
   window: HarvestWindow | null
   expectedTonnes: number | null
   /** Null where no price panel covers this plot's province and commodity. */
@@ -90,6 +99,7 @@ function toPlotDetailBlock(raw: PlotBlockRaw): PlotDetailBlock {
     varietyId: raw.variety_id,
     varietyName: raw.variety_name,
     plantingDate: utcDate(raw.planting_date),
+    fromPlan: raw.from_plan,
     window: raw.window ? toHarvestWindow(raw.window) : null,
     expectedTonnes: raw.expected_tonnes,
     price: raw.price ? toPriceBenchmark(raw.price) : null,

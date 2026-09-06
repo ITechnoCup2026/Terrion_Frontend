@@ -22,7 +22,7 @@ describe('navGroupsFor', () => {
 
   it('still gives the cooperative its own screens', () => {
     expect(flatNavItems('pengurus').map(i => i.href)).toEqual(
-      ['/dashboard', '/plots', '/purchases', '/requests', '/atlas'],
+      ['/dashboard', '/plots', '/rencana', '/purchases', '/requests', '/atlas'],
     )
   })
 })

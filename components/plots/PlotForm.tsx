@@ -58,7 +58,7 @@ export function PlotForm({
   } = useForm<FormValues, unknown, CreatePlotInput>({
     resolver: zodResolver(createPlotSchema),
     defaultValues: {
-      memberName: '', plotName: '',
+      memberName: '', memberPhone: '', plotName: '',
       lat: origin.lat, lng: origin.lng,
       plantings: [{ ...emptyPlanting }],
     } as unknown as FormValues,
@@ -140,6 +140,25 @@ export function PlotForm({
         <label className={label} htmlFor="memberName">Nama petani</label>
         <input id="memberName" className={field} autoComplete="off" {...register('memberName')} />
         {errors.memberName && <p className={errorText}>{errors.memberName.message}</p>}
+      </div>
+
+      {/* Optional, and drawn as optional. A kader standing at the edge of a
+          field often does not have the number, and a required field here would
+          be answered with a zero or a colleague's phone rather than left
+          empty. What it buys is said plainly, because a number asked for
+          without a reason is a number nobody gives. */}
+      <div>
+        <label className={label} htmlFor="memberPhone">
+          Nomor WhatsApp petani
+          <span className="ml-1.5 font-normal text-muted-foreground">opsional</span>
+        </label>
+        <input id="memberPhone" className={field} type="tel" inputMode="tel"
+          autoComplete="off" placeholder="08…" {...register('memberPhone')} />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Dipakai untuk mengirimkan tautan rencana tanam lewat WhatsApp. Nomor yang sudah
+          tercatat untuk petani ini tidak akan tertimpa.
+        </p>
+        {errors.memberPhone && <p className={errorText}>{errors.memberPhone.message}</p>}
       </div>
 
       <div>

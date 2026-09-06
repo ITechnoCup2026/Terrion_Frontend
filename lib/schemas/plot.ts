@@ -44,8 +44,43 @@ export function plotAreaHa(plantings: { areaHa: number }[]): number {
   return Math.round(plantings.reduce((sum, p) => sum + p.areaHa, 0) * 1e4) / 1e4
 }
 
+/**
+ * The bounds the backend puts on a phone number, mirrored so the kader is
+ * corrected in the form rather than by a 400 from an endpoint.
+ *
+ * Characters, not digits, and no format rule at all — Go checks length and
+ * nothing else, and a second, stricter rule here would reject numbers the
+ * backend would have accepted. "08xx", "+62 8xx" and a number with dashes in
+ * it are all fine; normalising for `wa.me` happens at the moment of sharing
+ * (`lib/planning/share.ts`), not on the way in.
+ */
+export const MIN_PHONE_CHARS = 8
+export const MAX_PHONE_CHARS = 15
+
 export const createPlotSchema = z.object({
   memberName: z.string().min(2, 'Nama petani minimal 2 karakter'),
+  /**
+   * The farmer's number, so the plan made for their land can reach them.
+   *
+   * Optional, and it has to stay optional: a kader registering a field at the
+   * roadside often does not have it, and a plot with no number is a plot, not
+   * an incomplete record. Empty becomes `undefined` rather than `''` because
+   * the backend treats an absent field and `null` alike and an empty string as
+   * a number eight characters short.
+   */
+  memberPhone: z.string()
+    // Spaces are stripped rather than trimmed, and that is load-bearing: Go
+    // counts characters, so "+62 812 3456 7890" is seventeen of them and would
+    // be refused for being too long — a number written the way half of
+    // Indonesia writes it. Whitespace inside a phone number carries no
+    // information, so removing it costs nothing and keeps the field usable.
+    .transform(v => v.replace(/\s+/g, ''))
+    .transform(v => (v === '' ? undefined : v))
+    .refine(
+      v => v === undefined || (v.length >= MIN_PHONE_CHARS && v.length <= MAX_PHONE_CHARS),
+      `Nomor telepon ${MIN_PHONE_CHARS}–${MAX_PHONE_CHARS} karakter`,
+    )
+    .optional(),
   plotName:   z.string().min(1, 'Nama lahan wajib diisi'),
   // Indonesia's bounding box — a pin outside it is a mistake, not data.
   lat:        z.coerce.number().min(-11).max(6),
