@@ -29,6 +29,7 @@ export type Crumb = {
  */
 const NAMED_LEAF: Record<string, string> = {
   '/plots/new': 'Daftarkan lahan',
+  '/rencana/susun': 'Susun rencana',
   '/plots/demo': 'Demo lahan',
   '/purchases/rdkk': 'Ekspor RDKK',
 }
@@ -36,6 +37,7 @@ const NAMED_LEAF: Record<string, string> = {
 /** What a dynamic child of a section is, when its own name is not in the URL. */
 const LEAF_KIND: Record<string, string> = {
   '/plots': 'Detail lahan',
+  '/rencana': 'Detail rencana',
   '/catalog': 'Detail pasokan',
   '/my-requests': 'Permintaan saya',
 }

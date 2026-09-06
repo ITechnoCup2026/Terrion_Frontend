@@ -14,7 +14,7 @@ export async function createPlot(raw: unknown): Promise<ActionResult<{ plotId: s
     if (!parsed.success) {
       throw new ExpectedFailure(parsed.error.issues[0]?.message ?? 'Isian tidak valid.')
     }
-    const { memberName, plotName, lat, lng, plantings } = parsed.data
+    const { memberName, memberPhone, plotName, lat, lng, plantings } = parsed.data
     const sessionId = await currentSessionId()
 
     try {
@@ -23,6 +23,15 @@ export async function createPlot(raw: unknown): Promise<ActionResult<{ plotId: s
         sessionId,
         body: {
           member_name: memberName,
+          // Omitted entirely when the kader left it blank, rather than sent as
+          // null: absent and null mean the same thing to the backend, and the
+          // shorter body says plainly that nothing was recorded.
+          //
+          // Worth knowing while reading this: the backend finds-or-creates a
+          // member by NAME, and it never overwrites a number already on file.
+          // So this field fills a gap; it cannot correct a wrong number, and
+          // there is no endpoint that can. The form says so.
+          ...(memberPhone ? { member_phone: memberPhone } : {}),
           plot_name: plotName,
           lat,
           lng,

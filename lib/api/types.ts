@@ -310,6 +310,8 @@ export type PlotBlockRaw = {
   variety_id: string
   variety_name: string
   planting_date: string
+  /** True when a season plan wrote this block, false when a kader recorded it. */
+  from_plan: boolean
   window: HarvestWindowRaw | null
   expected_tonnes: number | null
   /** Null where no price panel covers the plot's province and commodity. */
@@ -381,19 +383,42 @@ export type RdkkResponseRaw = {
 
 // ---- POST /api/input-orders ---------------------------------------------------------
 
+/** One adjusted amount. `item` must name an input this season's RDKK already
+ *  asked for -- a pengurus changes how much is ordered, never what. */
+export type CreateInputOrderLineRaw = {
+  item: string
+  quantity: number
+}
+
+export type CreateInputOrderBodyRaw = {
+  lines: CreateInputOrderLineRaw[]
+}
+
 export type CreateInputOrderResponseRaw = {
   order_id: string
   lines: number
 }
 
+/** Attached to a 409 `order_season_already_open`: which order is in the way. */
+export type OrderSeasonAlreadyOpenData = {
+  existing_order_id: string
+  existing_status: InputOrderStatusRaw
+}
+
 // ---- GET /api/input-orders -----------------------------------------------------------
 
-export type InputOrderStatusRaw = 'draft' | 'submitted' | 'completed'
+/** `cancelled` is the only ending a mistaken order has that is not a deletion.
+ *  Without it the sole way to correct one is to create another, which is how a
+ *  season ended up holding twelve identical drafts. */
+export type InputOrderStatusRaw = 'draft' | 'submitted' | 'completed' | 'cancelled'
 
 export type InputOrderLineRaw = {
   item: string
   quantity: number
   unit: string
+  /** What the RDKK worked out, present only where a pengurus adjusted this
+   *  line. Null means nobody touched it -- read the absence, do not compare. */
+  quantity_rdkk: number | null
 }
 
 export type InputOrderRaw = {
@@ -401,7 +426,21 @@ export type InputOrderRaw = {
   season_label: string
   status: InputOrderStatusRaw
   created_at: string
+  created_by_name: string | null
+  status_changed_at: string | null
+  status_changed_by_name: string | null
+  /** Where this order may go next, decided by the server from the one
+   *  transition table there is. The buttons are rendered from this rather than
+   *  from a second copy of the rules kept over here. */
+  next_statuses: InputOrderStatusRaw[]
   lines: InputOrderLineRaw[]
+}
+
+// ---- PATCH /api/input-orders/:id -----------------------------------------------------
+
+/** No `draft`: an order does not go backwards, so there is nowhere to say it. */
+export type UpdateInputOrderStatusRaw = {
+  status: Exclude<InputOrderStatusRaw, 'draft'>
 }
 
 // ---- GET/POST /api/supply-requests, PATCH /api/supply-requests/:id ------------------

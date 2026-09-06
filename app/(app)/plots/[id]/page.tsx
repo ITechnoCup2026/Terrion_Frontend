@@ -5,6 +5,7 @@ import type { FarmSummary } from '@/components/plots/FarmSummaryPanel'
 import { FarmWorkspace } from '@/components/plots/FarmWorkspace'
 import type { StageBlock } from '@/components/plots/PlotStage'
 import type { ReferenceCommodity, ReferenceVariety } from '@/components/plots/SplitBlockForm'
+import { Badge } from '@/components/ui/Badge'
 import { Page, PageHeader } from '@/components/ui/Page'
 import { currentAppUser } from '@/lib/auth/session'
 import { loadCommodities } from '@/lib/commodities/load'
@@ -155,8 +156,18 @@ export default async function PlotPage({ params }: { params: Promise<{ id: strin
                     </span>
                   </span>
                   <span className="pl-[1.125rem] text-xs text-muted-foreground">
-                    {block.label} · ditanam {formatDateId(block.plantingDate)}
+                    {block.label} · {block.fromPlan ? 'akan ditanam' : 'ditanam'}{' '}
+                    {formatDateId(block.plantingDate)}
                   </span>
+                  {/* Decision K3: a plan writes blocks, a kader records what is
+                      actually in the field, and the two must never look alike.
+                      "Ditanam 12 Nov" on a date that has not arrived is an
+                      observation the cooperative never made. */}
+                  {block.fromPlan && (
+                    <span className="pl-[1.125rem]">
+                      <Badge tone="neutral">Dari rencana tanam</Badge>
+                    </span>
+                  )}
                   <span className="pl-[1.125rem]">
                     <HarvestWindow window={block.window} degraded={plot.degraded} size="sm" />
                   </span>

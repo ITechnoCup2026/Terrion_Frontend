@@ -114,3 +114,43 @@ describe('plotAreaHa', () => {
     expect(plotAreaHa([])).toBe(0)
   })
 })
+
+describe('createPlotSchema · nomor telepon', () => {
+  it('accepts a plot registered without one', () => {
+    expect(createPlotSchema.parse(valid).memberPhone).toBeUndefined()
+  })
+
+  // The form always submits the field; empty must mean "not given", not "".
+  it('reads an empty field as absent', () => {
+    expect(createPlotSchema.parse({ ...valid, memberPhone: '' }).memberPhone).toBeUndefined()
+    expect(createPlotSchema.parse({ ...valid, memberPhone: '   ' }).memberPhone).toBeUndefined()
+  })
+
+  it('strips the spaces out of what it keeps', () => {
+    expect(createPlotSchema.parse({ ...valid, memberPhone: ' 081234567890 ' }).memberPhone)
+      .toBe('081234567890')
+    // Seventeen characters as typed, fourteen as sent: the backend counts
+    // characters and would have refused the spaced form.
+    expect(createPlotSchema.parse({ ...valid, memberPhone: '+62 812 3456 7890' }).memberPhone)
+      .toBe('+6281234567890')
+  })
+
+  // No format rule: Go checks length alone, and rejecting +62 or a dashed
+  // number here would refuse input the backend would have taken.
+  it('accepts any format within the length the backend allows', () => {
+    for (const phone of ['081234567890', '+62 812 3456 7890', '0812-3456-7890']) {
+      expect(createPlotSchema.safeParse({ ...valid, memberPhone: phone }).success).toBe(true)
+    }
+  })
+
+  it('rejects a number too short to be one', () => {
+    const result = createPlotSchema.safeParse({ ...valid, memberPhone: '0812' })
+    expect(result.success).toBe(false)
+    expect(result.error!.issues[0].message).toBe('Nomor telepon 8–15 karakter')
+  })
+
+  it('rejects a number past the length the backend stores', () => {
+    expect(createPlotSchema.safeParse({ ...valid, memberPhone: '0812345678901234' }).success)
+      .toBe(false)
+  })
+})
