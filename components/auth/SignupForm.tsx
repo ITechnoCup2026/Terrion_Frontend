@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, Building2, Lock, Mail, MailCheck, User } from 'lucide-react'
+import { ArrowRight, Building2, Lock, Mail, MailCheck, Phone, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -105,6 +105,18 @@ export function SignupForm() {
         placeholder="PT Pangan Nusantara"
         error={errors.organisation?.message}
         hint={errors.organisation ? undefined : 'Ditampilkan kepada koperasi saat Anda mengajukan permintaan.'}
+      />
+
+      <AuthField
+        icon={Phone}
+        label="Nomor WhatsApp"
+        {...register('phone')}
+        type="tel"
+        autoComplete="tel"
+        inputMode="tel"
+        placeholder="0812-3456-7890"
+        error={errors.phone?.message}
+        hint={errors.phone ? undefined : 'Dipakai koperasi untuk membalas permintaan Anda lewat WhatsApp.'}
       />
 
       <AuthField

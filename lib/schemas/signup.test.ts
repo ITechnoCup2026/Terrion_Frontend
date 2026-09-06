@@ -6,6 +6,7 @@ const valid = {
   fullName: 'Ibu Diana Prasetyo',
   organisation: 'PT Pangan Nusantara',
   email: 'diana@pangannusantara.test',
+  phone: '0812-3456-7890',
   password: 'rahasia123',
   confirmPassword: 'rahasia123',
 }
@@ -55,5 +56,19 @@ describe('signupSchema', () => {
     const parsed = signupSchema.parse({ ...valid, role: 'pengurus', cooperativeId: 'x' })
     expect(parsed).not.toHaveProperty('role')
     expect(parsed).not.toHaveProperty('cooperativeId')
+  })
+
+  // The number is not an auth factor -- there is no OTP -- but it is the only
+  // way a cooperative can answer a contract request, so an unusable one is
+  // refused at the form rather than discovered when somebody taps the button.
+  it('refuses a number WhatsApp could not open', () => {
+    const result = signupSchema.safeParse({ ...valid, phone: '12' })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts the way Indonesians actually write a number', () => {
+    for (const phone of ['0812-3456-7890', '0812 3456 7890', '+62 812 3456 7890']) {
+      expect(signupSchema.safeParse({ ...valid, phone }).success).toBe(true)
+    }
   })
 })

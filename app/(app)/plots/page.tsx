@@ -18,13 +18,26 @@ export const metadata = { title: 'Lahan' }
 // A plot registered a moment ago has to appear immediately.
 export const dynamic = 'force-dynamic'
 
+// Tombol pengisi cepat untuk field tanggal tanam.
+//
+// Dulu ada tiga: "Hari ini", "MT I <tahun>" (1 Okt), dan "MT II <tahun>"
+// (1 Apr). Keduanya yang terakhir memakai tanggal tetap di tahun berjalan,
+// jadi sepanjang paruh kedua tahun keduanya menawarkan tanggal yang SUDAH
+// LEWAT -- 1 April sudah lima bulan berlalu ketika seseorang mendaftarkan
+// lahan pada September.
+//
+// Blok yang ditanam sejauh itu di masa lalu sudah melewati kebutuhan GDD-nya,
+// dan pencarian kematangan di backend hanya berjalan maju: begitu syaratnya
+// sudah terpenuhi ia mengembalikan hari terakhir yang punya data cuaca, bukan
+// hari saat syarat itu benar-benar terlampaui. Hasilnya durasi ~172 hari untuk
+// varietas berumur 125 hari, dan jendela panennya ditandai `implausible`.
+//
+// Jadi tombolnya dihapus, bukan diperbaiki tanggalnya: mendaftarkan lahan
+// adalah mencatat apa yang ADA di lahan, dan tanggal tanam yang sebenarnya
+// diketik sendiri oleh kader. Menawarkan tanggal musim yang sudah lewat sebagai
+// isian sekali klik adalah mengundang catatan yang salah.
 function seasonShortcuts(now: Date) {
-  const year = now.getUTCFullYear()
-  return [
-    { label: 'Hari ini', date: toISODate(now) },
-    { label: `MT I ${year}/${String(year + 1).slice(2)}`, date: `${year}-10-01` },
-    { label: `MT II ${year}`, date: `${year}-04-01` },
-  ]
+  return [{ label: 'Hari ini', date: toISODate(now) }]
 }
 
 export default async function PlotsPage() {

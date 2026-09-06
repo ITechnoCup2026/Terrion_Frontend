@@ -18,7 +18,7 @@ import { z } from 'zod'
  *  finest size the grid offers. Below that it would not render. */
 export const MIN_PLANTING_HA = 0.01
 
-const MAX_PLOT_HA = 1000
+export const MAX_PLOT_HA = 1000
 
 /** More than this in one plot is a data-entry accident, not a farm. */
 export const MAX_PLANTINGS = 6

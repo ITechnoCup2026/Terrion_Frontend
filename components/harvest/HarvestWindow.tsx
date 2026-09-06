@@ -86,12 +86,15 @@ export function HarvestWindow({ window, week, size, degraded, className }: Props
     )
   }
 
+  // No confidence figure. The window is always the P10-P90 band, so the number
+  // was 80% on every row of every screen -- and a figure that never varies is
+  // read as a claim about THIS plot rather than as the fixed width it is. The
+  // range is already the uncertainty; printing a constant beside it added
+  // precision the reader could not act on, and after an already-matured block
+  // collapsed to a single day it was actively wrong.
   return (
     <span className={cn(windowVariants({ size }), className)}>
       <span className="font-medium text-foreground">{range}</span>
-      <span className="text-muted-foreground">
-        · {Math.round(window.confidence * 100)}% keyakinan
-      </span>
       {window.basis === 'climatology' && (
         <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
           Perkiraan awal

@@ -1,5 +1,7 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
+
 import { toISODate } from '@/lib/agronomy/dates'
 import { attempt, ExpectedFailure, type ActionResult } from '@/lib/actions/result'
 import { apiFetch, ApiError } from '@/lib/api/client'
@@ -64,6 +66,13 @@ export async function recordHarvest(
           },
         },
       )
+      // A recorded harvest retires the block from the canvas and moves the
+      // cooperative's calibration, so the farm, the list and the dashboard
+      // that reads those figures are all drawn from stale output without this.
+      revalidatePath(`/plots/${result.plot_id}`)
+      revalidatePath('/plots')
+      revalidatePath('/dashboard')
+
       return {
         plotId: result.plot_id,
         blockId: result.block_id,

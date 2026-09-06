@@ -37,6 +37,10 @@ export type StageBlock = {
    *  in the browser without asking the server. */
   plantingDate: string
   gddRequired: number
+  /** Only the signed-in plot page passes these: they are what the edit form
+   *  prefills from, and the public garden has no edit form. */
+  varietyId?: string
+  commodityId?: string
   /** Only the public garden passes these, because only its panel says them. */
   varietyName?: string | null
   yieldRangeTonnes?: { min: number; max: number } | null
@@ -84,6 +88,7 @@ export function PlotStage({
    *  allowed to write. Absent on the public garden page, which is why that
    *  page never ships a commodity list to the browser. */
   editing?: {
+    plotId: string
     commodities: ReferenceCommodity[]
     varieties: ReferenceVariety[]
   }

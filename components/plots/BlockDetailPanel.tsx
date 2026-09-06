@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { formatRupiah } from '@/lib/format/rupiah'
 import { formatDateId } from '@/lib/harvest/format'
 import { formatSeasonalGap, seasonalGap, type PriceBenchmark } from '@/lib/price/benchmark'
+import { EditBlockForm } from './EditBlockForm'
 import { RecordHarvestForm } from './RecordHarvestForm'
 import {
   SplitBlockForm, type ReferenceCommodity, type ReferenceVariety,
@@ -38,6 +39,7 @@ export function BlockDetailPanel({
    *  below kader. The action checks the role too; this only hides a button
    *  that would refuse. */
   editing?: {
+    plotId: string
     commodities: ReferenceCommodity[]
     varieties: ReferenceVariety[]
   }
@@ -45,7 +47,7 @@ export function BlockDetailPanel({
   // One face at a time. A block is either being read, being split, or being
   // closed off with a harvest -- and each of the three replaces the panel
   // rather than stacking inside it, because they are all about the same field.
-  const [face, setFace] = useState<'details' | 'split' | 'harvest'>('details')
+  const [face, setFace] = useState<'details' | 'split' | 'harvest' | 'edit'>('details')
 
   if (face === 'harvest' && editing) {
     return (
@@ -54,6 +56,24 @@ export function BlockDetailPanel({
         blockLabel={block.label}
         commodityName={block.commodityName}
         plantingDate={new Date(block.plantingDate)}
+        onDone={onClose}
+        onCancel={() => setFace('details')}
+      />
+    )
+  }
+
+  if (face === 'edit' && editing && block.varietyId && block.commodityId) {
+    return (
+      <EditBlockForm
+        blockId={block.id}
+        plotId={editing.plotId}
+        blockLabel={block.label}
+        areaHa={block.areaHa}
+        varietyId={block.varietyId}
+        commodityId={block.commodityId}
+        commodities={editing.commodities}
+        varieties={editing.varieties}
+        plantingDate={block.plantingDate}
         onDone={onClose}
         onCancel={() => setFace('details')}
       />
@@ -127,6 +147,15 @@ export function BlockDetailPanel({
               Tanam komoditas lain di sebagian lahan ini.
             </p>
           </div>
+
+          <div>
+            <Button variant="outline" size="sm" onClick={() => setFace('edit')}>
+              Ubah data blok
+            </Button>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Perbaiki luas, varietas, atau tanggal tanam yang salah tercatat.
+            </p>
+          </div>
         </div>
       )}
     </>
@@ -186,9 +215,6 @@ function PriceReference({ price }: { price: PriceBenchmark }) {
         </p>
       )}
 
-      <p className="mt-1.5 text-[0.6875rem] leading-relaxed text-muted-foreground">
-        Sumber: {price.source}
-      </p>
     </div>
   )
 }

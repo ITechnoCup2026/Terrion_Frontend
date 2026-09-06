@@ -31,6 +31,7 @@ export function FarmWorkspace({
   degraded: boolean
   detail?: 'block' | 'tile'
   editing?: {
+    plotId: string
     commodities: ReferenceCommodity[]
     varieties: ReferenceVariety[]
   }

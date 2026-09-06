@@ -1,6 +1,8 @@
 import {
   CalendarRange,
   ClipboardList,
+  Gauge,
+  History,
   Home,
   Inbox,
   LayoutDashboard,
@@ -74,6 +76,20 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Lahan',
         hint: 'Daftar lahan koperasi dan jadwal panennya',
         icon: Sprout,
+        roles: COOPERATIVE,
+      },
+      {
+        href: '/panen',
+        label: 'Riwayat panen',
+        hint: 'Panen yang sudah dicatat, dan hasil sebenarnya per lahan',
+        icon: History,
+        roles: COOPERATIVE,
+      },
+      {
+        href: '/kapasitas',
+        label: 'Kapasitas',
+        hint: 'Berapa ton per minggu yang sanggup diserap koperasi',
+        icon: Gauge,
         roles: COOPERATIVE,
       },
       {
